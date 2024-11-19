@@ -1,0 +1,181 @@
+Код отрабатывает, но все равно тест падает.
+я задолбалась
+
+
+
+
+PS C:\Users\Ольга\Desktop\DZ_Test> pytest
+========================================================== test session starts ===========================================================
+platform win32 -- Python 3.13.0, pytest-8.3.3, pluggy-1.5.0
+rootdir: C:\Users\Ольга\Desktop\DZ_Test
+collecting ... 
+DevTools listening on ws://127.0.0.1:59235/devtools/browser/3bc2a95f-bd11-4653-83c6-cea07c6d816c
+collecting 0 items
+DevTools listening on ws://127.0.0.1:59274/devtools/browser/758e44c6-d588-415f-a3ce-214255a6b28c
+collected 1 item
+
+07_zadanie\test_data_types_form.py
+DevTools listening on ws://127.0.0.1:59297/devtools/browser/89c09491-4b3d-40ae-8134-71dbf0d2bfef
+F                                                                                                [100%]
+
+================================================================ FAILURES ================================================================ 
+_______________________________________________________ test_fill_and_submit_form ________________________________________________________ 
+
+browser = <selenium.webdriver.chrome.webdriver.WebDriver (session="fc54379cea57ca305b2d212da8603a95")>
+
+    def test_fill_and_submit_form(browser):
+        page = DataTypesPage(browser)
+        page.load()
+
+        page.fill_first_name('Иван')
+        page.fill_last_name('Петров')
+        page.fill_address('Ленина, 55-3')
+        page.fill_email('test@skypro.com')
+        page.fill_phone_number('+7985899998787')
+        # Оставляем поле zip_code пустым
+        page.fill_city('Москва')
+        page.fill_country('Россия')
+        page.fill_job_position('QA')
+        page.fill_company('SkyPro')
+
+        # Прокручиваем до кнопки Submit перед кликом
+        submit_button = browser.find_element(*page.SUBMIT_BUTTON)
+        browser.execute_script("arguments[0].scrollIntoView();", submit_button)
+
+        page.click_submit_button()
+
+        # Проверяем, что поле Zip Code подсвечено красным
+>       zip_code_input = browser.find_element(
+            By.CSS_SELECTOR, '.form-control[name="zip-code"]')
+
+07_zadanie\test_data_types_form.py:36:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _  
+..\..\AppData\Local\Programs\Python\Python313\Lib\site-packages\selenium\webdriver\remote\webdriver.py:766: in find_element
+    return self.execute(Command.FIND_ELEMENT, {"using": by, "value": value})["value"]
+..\..\AppData\Local\Programs\Python\Python313\Lib\site-packages\selenium\webdriver\remote\webdriver.py:380: in execute
+    self.error_handler.check_response(response)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _  
+
+self = <selenium.webdriver.remote.errorhandler.ErrorHandler object at 0x000001C4754C6710>
+response = {'status': 404, 'value': '{"value":{"error":"no such element","message":"no such element: Unable to locate element: {\...07FF744391629]\\n\\tBaseThreadInitThunk [0x00007FFEE3747374+20]\\n\\tRtlUserThreadStart [0x00007FFEE54DCC91+33]\\n"}}'}
+
+    def check_response(self, response: Dict[str, Any]) -> None:
+        """Checks that a JSON response from the WebDriver does not have an
+        error.
+
+        :Args:
+         - response - The JSON response from the WebDriver server as a dictionary
+           object.
+
+        :Raises: If the response contains an error message.
+        """
+        status = response.get("status", None)
+        if not status or status == ErrorCode.SUCCESS:
+            return
+        value = None
+        message = response.get("message", "")
+        screen: str = response.get("screen", "")
+        stacktrace = None
+        if isinstance(status, int):
+            value_json = response.get("value", None)
+            if value_json and isinstance(value_json, str):
+                import json
+
+                try:
+                    value = json.loads(value_json)
+                    if len(value) == 1:
+                        value = value["value"]
+                    status = value.get("error", None)
+                    if not status:
+                        status = value.get("status", ErrorCode.UNKNOWN_ERROR)
+                        message = value.get("value") or value.get("message")
+                        if not isinstance(message, str):
+                            value = message
+                            message = message.get("message")
+                    else:
+                        message = value.get("message", None)
+                except ValueError:
+                    pass
+    
+        exception_class: Type[WebDriverException]
+        e = ErrorCode()
+        error_codes = [item for item in dir(e) if not item.startswith("__")]
+        for error_code in error_codes:
+            error_info = getattr(ErrorCode, error_code)
+            if isinstance(error_info, list) and status in error_info:
+                exception_class = getattr(ExceptionMapping, error_code, WebDriverException)
+                break
+        else:
+            exception_class = WebDriverException
+
+        if not value:
+            value = response["value"]
+        if isinstance(value, str):
+            raise exception_class(value)
+        if message == "" and "message" in value:
+            message = value["message"]
+
+        screen = None  # type: ignore[assignment]
+        if "screen" in value:
+            screen = value["screen"]
+
+        stacktrace = None
+        st_value = value.get("stackTrace") or value.get("stacktrace")
+        if st_value:
+            if isinstance(st_value, str):
+                stacktrace = st_value.split("\n")
+            else:
+                stacktrace = []
+                try:
+                    for frame in st_value:
+                        line = frame.get("lineNumber", "")
+                        file = frame.get("fileName", "<anonymous>")
+                        if line:
+                            file = f"{file}:{line}"
+                        meth = frame.get("methodName", "<anonymous>")
+                        if "className" in frame:
+                            meth = f"{frame['className']}.{meth}"
+                        msg = "    at %s (%s)"
+                        msg = msg % (meth, file)
+                        stacktrace.append(msg)
+                except TypeError:
+                    pass
+        if exception_class == UnexpectedAlertPresentException:
+            alert_text = None
+            if "data" in value:
+                alert_text = value["data"].get("text")
+            elif "alert" in value:
+                alert_text = value["alert"].get("text")
+            raise exception_class(message, screen, stacktrace, alert_text)  # type: ignore[call-arg]  # mypy is not smart enough here      
+>       raise exception_class(message, screen, stacktrace)
+E       selenium.common.exceptions.NoSuchElementException: Message: no such element: Unable to locate element: {"method":"css selector","selector":".form-control[name="zip-code"]"}
+E         (Session info: chrome=131.0.6778.70); For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#no-such-element-exception
+E       Stacktrace:
+E               GetHandleVerifier [0x00007FF744432775+28773]
+E               (No symbol) [0x00007FF74439AFB0]
+E               (No symbol) [0x00007FF74423552A]
+E               (No symbol) [0x00007FF744288EAE]
+E               (No symbol) [0x00007FF74428919C]
+E               (No symbol) [0x00007FF7442D23F7]
+E               (No symbol) [0x00007FF7442AEFDF]
+E               (No symbol) [0x00007FF7442CF1A4]
+E               (No symbol) [0x00007FF7442AED43]
+E               (No symbol) [0x00007FF74427A548]
+E               (No symbol) [0x00007FF74427B6B1]
+E               GetHandleVerifier [0x00007FF74475F45D+3358029]
+E               GetHandleVerifier [0x00007FF74477430D+3443709]
+E               GetHandleVerifier [0x00007FF7447683FD+3394797]
+E               GetHandleVerifier [0x00007FF7444F929B+842635]
+E               (No symbol) [0x00007FF7443A654F]
+E               (No symbol) [0x00007FF7443A1FA4]
+E               (No symbol) [0x00007FF7443A213D]
+E               (No symbol) [0x00007FF744391629]
+E               BaseThreadInitThunk [0x00007FFEE3747374+20]
+E               RtlUserThreadStart [0x00007FFEE54DCC91+33]
+
+..\..\AppData\Local\Programs\Python\Python313\Lib\site-packages\selenium\webdriver\remote\errorhandler.py:229: NoSuchElementException      
+======================================================== short test summary info ========================================================= 
+FAILED 07_zadanie/test_data_types_form.py::test_fill_and_submit_form - selenium.common.exceptions.NoSuchElementException: Message: no such 
+element: Unable to locate element: {"method":"css selector","selec...
+=========================================================== 1 failed in 22.50s =========================================================== 
+PS C:\Users\Ольга\Desktop\DZ_Test> 
